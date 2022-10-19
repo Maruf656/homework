@@ -13,6 +13,11 @@ type Human struct {
 	SecondName string    `json:"second_name"`
 	Date       time.Time `json:"date"`
 }
+type SecondHuman struct {
+	Name       string `json:"name"`
+	SecondName string `json:"second_name"`
+	Date       string `json:"date"`
+}
 
 func main() {
 
@@ -40,9 +45,24 @@ func GetQuery(w http.ResponseWriter, r *http.Request) {
 	//fmt.Println("URL:", request.URL)
 	x := r.URL.Query()
 
-	//timeNow := time.Now().Format("01/02/2006 15:04:05")
 	timeNow := time.Now()
 	WriteToJson(x.Get("name"), x.Get("secondName"), timeNow)
+	// Второе условие
+	secondTime := time.Now().Format("15:04:05 02-01-06")
+	var human SecondHuman = SecondHuman{
+		Name:       x.Get("name"),
+		SecondName: x.Get("secondName"),
+		Date:       secondTime,
+	}
+	content, err := json.MarshalIndent(human, "", "    ")
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = w.Write(content)
+	if err != nil {
+		log.Println(err)
+	}
+
 }
 
 func WriteToJson(name string, secondName string, time time.Time) {
