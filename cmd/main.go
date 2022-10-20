@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -22,12 +23,12 @@ type SecondHuman struct {
 func main() {
 
 	ip := "localhost"
-	port := ":9999"
+	port := "9999"
 
 	// Rout --- что это такое
 	http.HandleFunc("/hello", GetQuery)
 
-	address := ip + port
+	address := net.JoinHostPort(ip, port)
 	err := http.ListenAndServe(address, nil)
 	if err != nil {
 		log.Println("listen and serve", err)
@@ -36,18 +37,11 @@ func main() {
 
 func GetQuery(w http.ResponseWriter, r *http.Request) {
 
-	//fmt.Println("URI:", request.RequestURI)
-	//fmt.Println("body:", request.Body)
-	//fmt.Println("length:", request.ContentLength)
-	//fmt.Println("header:", request.Header)
-	//fmt.Println("method:", request.Method)
-	//fmt.Println("Host:", request.Host)
-	//fmt.Println("URL:", request.URL)
 	x := r.URL.Query()
 
 	timeNow := time.Now()
 	WriteToJson(x.Get("name"), x.Get("secondName"), timeNow)
-	// Второе условие
+
 	secondTime := time.Now().Format("15:04:05 02-01-06")
 	var human SecondHuman = SecondHuman{
 		Name:       x.Get("name"),
