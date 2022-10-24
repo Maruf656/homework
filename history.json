@@ -4,5 +4,29 @@
         "num_two": 6,
         "operation": "*",
         "result": 30
+    },
+    {
+        "num_one": 5,
+        "num_two": 6,
+        "operation": "*",
+        "result": 30
+    },
+    {
+        "num_one": 5,
+        "num_two": 6,
+        "operation": "*",
+        "result": 30
+    },
+    {
+        "num_one": 5,
+        "num_two": 63,
+        "operation": "+",
+        "result": 68
+    },
+    {
+        "num_one": 5,
+        "num_two": 63,
+        "operation": "/",
+        "result": 0.07936507936507936
     }
 ]

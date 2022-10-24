@@ -2,7 +2,7 @@ package router
 
 import (
 	"encoding/json"
-	"errors"
+	"github.com/Abdulhalim92/server/config"
 	"github.com/Abdulhalim92/server/internal/models"
 	"io"
 	"log"
@@ -15,27 +15,14 @@ import (
 func StartRouter() error {
 
 	// вывести в отдельные функции
-	file, err := os.Open("./config/config.json")
+
+	getConfig, err := config.GetConfig()
 	if err != nil {
-		log.Println(err)
+		log.Println("Не получилось получить настройки")
 		return err
 	}
 
-	bytes, err := io.ReadAll(file)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	var config models.Config
-
-	err = json.Unmarshal(bytes, &config)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	address := net.JoinHostPort(config.Host, config.Port)
+	address := net.JoinHostPort(getConfig.Host, getConfig.Port)
 
 	mux := http.NewServeMux()
 
@@ -58,18 +45,61 @@ func Calculate(w http.ResponseWriter, r *http.Request) {
 	numOne := queries.Get("num_one")
 	firstNum, err := strconv.ParseFloat(numOne, 64)
 	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 	// Получение второго числа
 	numTwo := queries.Get("num_two")
 	secondNum, err := strconv.ParseFloat(numTwo, 64)
 	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 	// Получение арифметической операции
 	operation := queries.Get("operation")
 
 	// Нахождение результата операции между двумя числами
+	result := Calc(firstNum, secondNum, operation)
+	// Запись данных в структуру
+	HistoryElement := models.HistoryElement{
+		NumberOne: firstNum,
+		NumberTwo: secondNum,
+		Operation: operation,
+		Result:    result,
+	}
+	// Сохранение истории операций над элементами
+	// Открываем и читаем файл JSON
+	contentJSON, err := FileOpen()
+	if err != nil {
+		log.Println("Не получилось получить контент")
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	// Добавляем в срез объектов новую историю результатов
+	var HistoryEL []models.HistoryElement
+	err = json.Unmarshal(contentJSON, &HistoryEL)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		log.Println("didn't unmarshal")
+		return
+	}
+	lengthHistory := len(HistoryEL) // длина среза объектов
+	log.Println(lengthHistory)
+	HistoryEL = append(HistoryEL, HistoryElement)
+	// Сериализация структуры HistoryElement в JSON
+	bytes, err := json.MarshalIndent(HistoryEL, "", "    ")
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	// Запись сериализованного JSON в файл JSON
+	err = os.WriteFile("./history.json", bytes, 0777)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+}
+func Calc(firstNum float64, secondNum float64, operation string) float64 {
 	var result float64
 
 	switch operation {
@@ -84,58 +114,46 @@ func Calculate(w http.ResponseWriter, r *http.Request) {
 	default:
 		log.Println("not an operation")
 	}
-	// Запись данных в структуру
-	HistoryElement := models.HistoryElement{
-		NumberOne: firstNum,
-		NumberTwo: secondNum,
-		Operation: operation,
-		Result:    result,
-	}
-	// Провека
-	jsonFile, err := os.OpenFile("./history.json", os.O_RDWR, 0777)
+	return result
+}
+func FileOpen() ([]byte, error) {
+	// Открываем файл
+	file, err := os.OpenFile("./history.json", os.O_RDWR, 0777)
 	if err != nil {
-		log.Println("didn't do")
+		log.Println("didn't open")
+		return nil, err
 	}
-	defer func(jsonFile *os.File) {
-		err = jsonFile.Close()
-		if err != nil {
-			log.Println("the file didn't closed")
-		}
-	}(jsonFile)
-	buf := make([]byte, 4096)
-	n, err := jsonFile.Read(buf)
+	// Читаем файл
+	contentJSON, err := io.ReadAll(file)
 	if err != nil {
 		log.Println("didn't read")
+		return nil, err
 	}
-	buf = buf[:n]
-	var HistoryEl models.HistoryElement
-	err = json.Unmarshal(buf, &HistoryEl)
-	if err != nil {
-		log.Println("didn't do")
-	}
-	log.Println(string(buf))
-	log.Println(HistoryEl)
-	// Сохранение истории операций над элементами
-	var HistoryElements []models.HistoryElement
-	HistoryElements = append(HistoryElements, HistoryElement)
-	// Сериализация структуры HistoryElement в JSON
-	bytes, err := json.MarshalIndent(&HistoryElements, "", "    ")
-	if err != nil {
-		return
-	}
-	// Запись сериализованного JSON в файл JSON
-	err = os.WriteFile("./history.json", bytes, 0777)
-	if err != nil {
-		return
-	}
-}
 
+	return contentJSON, nil
+
+}
 func GetHistory(w http.ResponseWriter, r *http.Request) {
 
-	err := errors.New("fake error")
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-	}
 	// получение истории калькулятора
-	//var History []*models.HistoryElement // response ваш ответ
+	var History []models.HistoryElement // response ваш ответ
+	// Открываем и читаем файл JSON
+	contentJSON, err := FileOpen()
+	if err != nil {
+		log.Println("Не получилось получить контент")
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	// log.Println(string(contentJSON))
+	err = json.Unmarshal(contentJSON, &History)
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+	log.Println(History)
+	_, err = w.Write(contentJSON)
+	if err != nil {
+		log.Println("Не получилось")
+		return
+	}
 }
